@@ -6,6 +6,14 @@ public class Bank
     private HashMap<String, Account> accounts;
     private final Random random = new Random();
 
+    public void setAccounts(HashMap<String, Account> accounts) {
+        this.accounts = accounts;
+    }
+
+    public HashMap<String, Account> getAccounts() {
+        return accounts;
+    }
+
     public synchronized boolean isFraud(String fromAccountNum, String toAccountNum, long amount)
         throws InterruptedException
     {
@@ -30,6 +38,7 @@ public class Bank
      */
     public long getBalance(String accountNum)
     {
+
         return 0;
     }
 }
