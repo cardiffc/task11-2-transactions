@@ -1,23 +1,34 @@
 import java.util.*;
 
 public class Main {
-    private static Random random = new Random();
-
     public static void main(String[] args) {
+        long start = System.currentTimeMillis();
         Bank bank = new Bank();
-        int clientCount = random.nextInt(100);
-        HashMap<String,Account> bankAccounts = new HashMap<>();
-        for (int i = 0; i < clientCount ; i++) {
-            String accNumber = String.valueOf(Math.abs(random.nextLong()));
-            bankAccounts.put(accNumber, new Account(Math.abs(random.nextLong()), accNumber));
+        Thread thread1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+            bank.createAccounts(1000000);
+            }
+        });
+        Thread thread2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+            bank.createAccounts(1000000);
+            }
+        });
+        thread1.start();
+        thread2.start();
+        try {
+            thread1.join();
+            thread2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        bank.setAccounts(bankAccounts);
+        long finish = System.currentTimeMillis();
+
+        System.out.println(finish - start);
+
+        System.out.println(bank.getAccounts().size());
 
     }
-
-//    private static void fillAcoounts (HashMap<String,Account> accounts)
-//    {
-//        int
-//
-//    }
 }

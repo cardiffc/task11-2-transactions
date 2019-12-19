@@ -7,6 +7,7 @@ public class Account
     public Account(long money, String accNumber) {
         this.money = money;
         this.accNumber = accNumber;
+        this.isBlocked = false;
     }
 
     public void setMoney(long money) {
