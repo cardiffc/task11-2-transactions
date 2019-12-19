@@ -24,7 +24,7 @@ public class Bank
     public synchronized boolean isFraud(String fromAccountNum, String toAccountNum, long amount)
             throws InterruptedException
     {
-        Thread.sleep(1000);
+        Thread.sleep(1);
         return random.nextBoolean();
     }
 
@@ -43,7 +43,8 @@ public class Bank
             }
         }
         if (fromAccount.isBlocked() || toAccount.isBlocked()) {
-            System.out.println("Проведение трансакции невозможно по причине блокировки");
+            // Тут должен быть ответ пользователю о том, что проведение заблокировано, но чтобы не грузить тесты убрал
+
         } else if (fromAccount.getMoney() > amount) {
 
             /**

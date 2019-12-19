@@ -1,10 +1,13 @@
 import junit.framework.TestCase;
 import org.junit.Assert;
-import org.junit.Test;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * ВНИМАНИЕ! ДЛЯ ПРОХОЖДЕНИЯ ТЕСТОВ НЕОБХОДИМО УМЕНЬШИТЬ ЗАДЕРЖКУ В РАБОТЕ СБ ДО 1мсек ИНАЧЕ НА БОЛЬШОМ КОЛИЧЕСТВЕ
+ * ТРАНСАКЦИЙ ТЕСТЫ БУДУТ ИДТМ ОЧЕНЬ ДОЛГО
+ */
 
 public class BankTest extends TestCase {
     Random random = new Random();
@@ -12,7 +15,7 @@ public class BankTest extends TestCase {
     int threadsCount;
     int accountsNum;
     HashMap<String,Account> accounts;
-    int trasCount;
+    int transCount;
     int transToCheck;
     int transPerThread;
     int transToCheckThread;
@@ -28,11 +31,11 @@ public class BankTest extends TestCase {
         bank.createAccounts(accountsNum);
         accounts = bank.getAccounts();
         /** Задаем количество предполагаемых трансакций */
-        trasCount = accountsNum / 2;
+        transCount = accountsNum / 2;
         /** Задаем количество трансакций, попадающих под СБ */
-        transToCheck = (trasCount / 100) * 5;
+        transToCheck = (transCount / 100) * 5;
         /** Получим кол-во трансакций на поток */
-        transPerThread = trasCount / threadsCount;
+        transPerThread = transCount / threadsCount;
         transToCheckThread = transToCheck / threadsCount;
         /** Получим все номера счетов для отдельной обработки и стартовую сумму по всем счетам */
         startTotalAmount = 0;
@@ -79,6 +82,8 @@ public class BankTest extends TestCase {
             }
         Assert.assertEquals(0, negativeCount);
     }
+
+    /** Тест сравнивает общее количество денег на всех счетах до проведения транзакций и после */
     public void testTransferForMoney()
     {
       /** Создаем потоки */
@@ -93,6 +98,16 @@ public class BankTest extends TestCase {
                         String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
                         try {
                             bank.transfer(fromAccount, toAccount, random.nextInt(49000));
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    for (int j = 0; j < transToCheckThread; j++) {
+                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        try {
+                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
+
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -135,6 +150,16 @@ public class BankTest extends TestCase {
                             e.printStackTrace();
                         }
                     }
+                    for (int j = 0; j < transToCheckThread; j++) {
+                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        try {
+                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
+
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }));
         }
@@ -153,10 +178,59 @@ public class BankTest extends TestCase {
         for (Map.Entry account : accounts.entrySet()) {
             negativeCount += (bank.getAccounts().get(account.getKey()).getMoney() < 0) ? 1 : 0;
         }
-
+        /** Проверяем отсутствие отрицательного баланса */
         Assert.assertEquals(0, negativeCount);
-
     }
 
+    /** Тест проверяет, что количество заблокированных СБ счетов отличается от нуля. Поскольку все идет на
+     * псевдослучайных вычислениях на малом количестве трансакций может быть ноль.
+     */
+    public void testBlockedAccounts() {
+        /** Создаем потоки */
+        ArrayList<Thread> threads = new ArrayList<>();
+        AtomicInteger count = new AtomicInteger();
+        for (int i = 0; i < threadsCount; i++) {
+            threads.add(new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    for (int j = 0; j < transPerThread -  transToCheckThread; j++) {
+                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        try {
+                            bank.transfer(fromAccount, toAccount, random.nextInt(49000));
 
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    for (int j = 0; j < transToCheckThread; j++) {
+                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
+                        try {
+                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
+
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }));
+        }
+        /** Запускаем и ждем потоки */
+        threads.forEach(Thread::start);
+        try {
+            for (Thread thread : threads) {
+                thread.join();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        int blockedAccounts = 0;
+        for (Map.Entry account : accounts.entrySet()) {
+            if (accounts.get(account.getKey()).isBlocked()) {
+                blockedAccounts++;
+            }
+        }
+        Assert.assertNotEquals(0,blockedAccounts);
+    }
 }
