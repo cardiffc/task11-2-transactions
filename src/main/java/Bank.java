@@ -11,10 +11,6 @@ public class Bank
      * А так будет в MEMORY актуальные данные
      */
     private volatile HashMap<String, Account> accounts = new HashMap<>();
-    /**
-     * Создадим generic-объект для того, чтобы использовать его intransic lock, а не всего объекта класа bank или коллекции
-     */
-    private static Object lock = new Object();
     private final Random random = new Random();
 
     public void setAccounts(HashMap<String, Account> accounts) {
@@ -26,45 +22,49 @@ public class Bank
     }
 
     public synchronized boolean isFraud(String fromAccountNum, String toAccountNum, long amount)
-        throws InterruptedException
+            throws InterruptedException
     {
         Thread.sleep(1000);
         return random.nextBoolean();
     }
 
-    /**
-     * TODO: реализовать метод. Метод переводит деньги между счетами.
-     * Если сумма транзакции > 50000, то после совершения транзакции,
-     * она отправляется на проверку Службе Безопасности – вызывается
-     * метод isFraud. Если возвращается true, то делается блокировка
-     * счетов (как – на ваше усмотрение)
-     */
     public void transfer(String fromAccountNum, String toAccountNum, long amount) throws InterruptedException {
         Account fromAccount = accounts.get(fromAccountNum);
         Account toAccount = accounts.get(toAccountNum);
-        // Проверяем подозрительные транзакции и блокируем счета в случае чего
+        /** Проверяем подозрительные транзакции и блокируем счета в случае чего */
         if (amount >= CHECKAMOUNT) {
-            boolean toBlock = isFraud(fromAccountNum,toAccountNum,amount);
-            synchronized (lock) {
-                fromAccount.setBlocked(toBlock);
-                toAccount.setBlocked(toBlock);
+            boolean toBlock = isFraud(fromAccountNum, toAccountNum, amount);
+            if (toBlock) {
+                /** Лочим по instransic lock одного из счетов, т.к. нужно заблокировать одновременно оба. */
+                synchronized (fromAccount) {
+                    fromAccount.setBlocked(toBlock);
+                    toAccount.setBlocked(toBlock);
+                }
             }
         }
         if (fromAccount.isBlocked() || toAccount.isBlocked()) {
-            System.out.println("Извините, проведение транзакции невозможно по причине блокировки");
-        } else {
-            synchronized (lock) {
+            System.out.println("Проведение трансакции невозможно по причине блокировки");
+        } else if (fromAccount.getMoney() > amount) {
+
+            /**
+             * Лочим аккаунт, т.к. вычитаем деньги и если не лочить то в силу состояния гонки можем получить результат
+             * с отрицательным балансом в силу многопоточности
+             */
+            synchronized (fromAccount) {
                 fromAccount.setMoney(fromAccount.getMoney() - amount);
-                toAccount.setMoney(toAccount.getMoney() + amount);
             }
+            /**
+             * Если не ошибаюсь, то тут лочить смысла нет, т.к. мы добавляем деньги.
+             * Если этот счет где-то выступает fromAccount (в другом потоке) то он и так залочен.
+             * В противном случае в состоянии race condition будут только операции на добавление, которые все равно
+             * все сработают и в этом состоянии в данном случае нет ничего страшного. Прошу поправить, если ошибаюсь.
+             */
+            toAccount.setMoney(toAccount.getMoney() + amount);
+        } else{
+            System.out.println("Трансакция невозможна - недостаточно средств");
         }
     }
-
-    /**
-     * TODO: реализовать метод. Возвращает остаток на счёте.
-     */
-    public long getBalance (String accountNum)
-    {
+    public long getBalance (String accountNum) {
         Account account = accounts.get(accountNum);
         return account.getMoney();
     }
@@ -72,12 +72,9 @@ public class Bank
         for (int i = 0; i < number ; i++) {
             String accNumber = String.valueOf(Math.abs(random.nextLong()));
             long moneyAmount = Math.abs(random.nextLong());
-            synchronized (lock) {
+            synchronized (accounts) {
                 accounts.put(accNumber, new Account(moneyAmount, accNumber));
             }
-
         }
-
     }
-
 }
