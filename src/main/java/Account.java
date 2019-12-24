@@ -1,4 +1,7 @@
-public class Account
+import java.util.Comparator;
+
+public class Account implements Comparable<Account>
+
 {
     private long money;
     private String accNumber;
@@ -36,7 +39,9 @@ public class Account
     }
 
 
-
-
+    @Override
+    public int compareTo(Account o) {
+        return o.getAccNumber().compareTo(accNumber);
+    }
 }
 

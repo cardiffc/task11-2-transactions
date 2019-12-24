@@ -25,13 +25,13 @@ public class BankTest extends TestCase {
     @Override
     protected void setUp() throws Exception {
         bank = new Bank();
-        threadsCount = 4;
+        threadsCount = 10;
         /** Задаем количество и создаем счета */
-        accountsNum = 2000000;
+        accountsNum = 20;
         bank.createAccounts(accountsNum);
         accounts = bank.getAccounts();
         /** Задаем количество предполагаемых трансакций */
-        transCount = accountsNum / 2;
+        transCount = 10000;
         /** Задаем количество трансакций, попадающих под СБ */
         transToCheck = (transCount / 100) * 5;
         /** Получим кол-во трансакций на поток */
@@ -44,7 +44,6 @@ public class BankTest extends TestCase {
             startTotalAmount += accounts.get(account.getKey()).getMoney();
         }
     }
-
     /** Тестируем метод создания счетов на нормальную работу в многопотоке */
     public void testCreateAccountsForRaceCondition() {
         Bank bank = new Bank();

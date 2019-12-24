@@ -1,5 +1,4 @@
 import java.util.HashMap;
-import java.util.List;
 import java.util.Random;
 
 public class Bank
@@ -35,34 +34,19 @@ public class Bank
         if (amount >= CHECKAMOUNT) {
             boolean toBlock = isFraud(fromAccountNum, toAccountNum, amount);
             if (toBlock) {
-                /** Лочим по instransic lock одного из счетов, т.к. нужно заблокировать одновременно оба. */
-                synchronized (fromAccount) {
-                    fromAccount.setBlocked(toBlock);
-                    toAccount.setBlocked(toBlock);
-                }
-            }
+                /** Блокировка счетов */
+                lockAccounts(fromAccount, toAccount, toBlock);
+             }
         }
         if (fromAccount.isBlocked() || toAccount.isBlocked()) {
             // Тут должен быть ответ пользователю о том, что проведение заблокировано, но чтобы не грузить тесты убрал
 
         } else if (fromAccount.getMoney() > amount) {
+            /** Переводим деньги */
+            transferAmount(fromAccount, toAccount, amount);
 
-            /**
-             * Лочим аккаунт, т.к. вычитаем деньги и если не лочить то в силу состояния гонки можем получить результат
-             * с отрицательным балансом в силу многопоточности
-             */
-            synchronized (fromAccount) {
-                fromAccount.setMoney(fromAccount.getMoney() - amount);
-            }
-            /**
-             * Если не ошибаюсь, то тут лочить смысла нет, т.к. мы добавляем деньги.
-             * Если этот счет где-то выступает fromAccount (в другом потоке) то он и так залочен.
-             * В противном случае в состоянии race condition будут только операции на добавление, которые все равно
-             * все сработают и в этом состоянии в данном случае нет ничего страшного. Прошу поправить, если ошибаюсь.
-             */
-            toAccount.setMoney(toAccount.getMoney() + amount);
         } else{
-            System.out.println("Трансакция невозможна - недостаточно средств");
+            System.out.println("Транзакция невозможна - недостаточно средств");
         }
     }
     public long getBalance (String accountNum) {
@@ -77,5 +61,13 @@ public class Bank
                 accounts.put(accNumber, new Account(moneyAmount, accNumber));
             }
         }
+    }
+    public synchronized void transferAmount(Account fromAccount, Account toAccount, long amount) {
+        fromAccount.setMoney(fromAccount.getMoney() - amount);
+        toAccount.setMoney(toAccount.getMoney() + amount);
+    }
+    public synchronized void lockAccounts (Account fromAccount, Account toAccount, boolean toBlock) {
+        fromAccount.setBlocked(toBlock);
+        toAccount.setBlocked(toBlock);
     }
 }
