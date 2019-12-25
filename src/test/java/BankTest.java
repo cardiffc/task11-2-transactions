@@ -32,8 +32,6 @@ public class BankTest extends TestCase {
         accounts = bank.getAccounts();
         /** Задаем количество предполагаемых трансакций */
         transCount = 10000;
-        /** Задаем количество трансакций, попадающих под СБ */
-        transToCheck = (transCount / 100) * 5;
         /** Получим кол-во трансакций на поток */
         transPerThread = transCount / threadsCount;
         transToCheckThread = transToCheck / threadsCount;
@@ -85,93 +83,17 @@ public class BankTest extends TestCase {
     /** Тест сравнивает общее количество денег на всех счетах до проведения транзакций и после */
     public void testTransferForMoney()
     {
-      /** Создаем потоки */
-        ArrayList<Thread> threads = new ArrayList<>();
-        AtomicInteger count = new AtomicInteger();
-        for (int i = 0; i < threadsCount; i++) {
-            threads.add(new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    for (int j = 0; j < transPerThread -  transToCheckThread; j++) {
-                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(49000));
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    for (int j = 0; j < transToCheckThread; j++) {
-                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
-
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }));
-        }
-       /** Запускаем и ждем потоки */
-       threads.forEach(Thread::start);
-       try {
-           for (Thread thread : threads) {
-               thread.join();
-           }
-       } catch (InterruptedException e) {
-           e.printStackTrace();
-       }
+        makeThreads();
        /** Получим сумму по всем счетам после проведения 1000000 трансакций */
        long finishTotalAmount = 0;
-       for (Map.Entry account : accounts.entrySet())
-       {
+       for (Map.Entry account : accounts.entrySet()) {
            finishTotalAmount += accounts.get(account.getKey()).getMoney();
        }
        /** Сравним начальные и конечные показатели суммы на всех счетах */
        Assert.assertEquals(startTotalAmount, finishTotalAmount);
     }
     public void testTransferForNegativeBalance() {
-        /** Создаем потоки */
-        ArrayList<Thread> threads = new ArrayList<>();
-        AtomicInteger count = new AtomicInteger();
-        for (int i = 0; i < threadsCount; i++) {
-            threads.add(new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    for (int j = 0; j < transPerThread -  transToCheckThread; j++) {
-                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(49000));
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    for (int j = 0; j < transToCheckThread; j++) {
-                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
-
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }));
-        }
-        /** Запускаем и ждем потоки */
-        threads.forEach(Thread::start);
-        try {
-            for (Thread thread : threads) {
-                thread.join();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
+        makeThreads();
         /** Получим количество счетов с отрицательным балансом **/
         int negativeCount = 0;
         for (Map.Entry account : accounts.entrySet()) {
@@ -185,29 +107,30 @@ public class BankTest extends TestCase {
      * псевдослучайных вычислениях на малом количестве трансакций может быть ноль.
      */
     public void testBlockedAccounts() {
+        makeThreads();
+        int blockedAccounts = 0;
+        for (Map.Entry account : accounts.entrySet()) {
+            if (accounts.get(account.getKey()).isBlocked()) {
+                blockedAccounts++;
+            }
+        }
+        Assert.assertNotEquals(0,blockedAccounts);
+    }
+
+    /** Метод для запуска потоков и отработки транзакций */
+    public void makeThreads () {
         /** Создаем потоки */
         ArrayList<Thread> threads = new ArrayList<>();
-        AtomicInteger count = new AtomicInteger();
         for (int i = 0; i < threadsCount; i++) {
             threads.add(new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    for (int j = 0; j < transPerThread -  transToCheckThread; j++) {
+                    for (int j = 0; j < transPerThread; j++) {
                         String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
                         String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
                         try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(49000));
-
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    for (int j = 0; j < transToCheckThread; j++) {
-                        String fromAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        String toAccount = accountNumbers.get(random.nextInt(accountNumbers.size()));
-                        try {
-                            bank.transfer(fromAccount, toAccount, random.nextInt(52000));
-
+                            bank.transfer(fromAccount, toAccount, (j == random.nextInt(500))
+                                    ? 52500 : random.nextInt(49000));
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -224,12 +147,5 @@ public class BankTest extends TestCase {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        int blockedAccounts = 0;
-        for (Map.Entry account : accounts.entrySet()) {
-            if (accounts.get(account.getKey()).isBlocked()) {
-                blockedAccounts++;
-            }
-        }
-        Assert.assertNotEquals(0,blockedAccounts);
     }
 }
