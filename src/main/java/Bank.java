@@ -35,17 +35,26 @@ public class Bank
             boolean toBlock = isFraud(fromAccountNum, toAccountNum, amount);
             if (toBlock) {
                 /** Блокировка счетов */
-                lockAccounts(fromAccount, toAccount, toBlock);
-             }
+                synchronized (fromIsBigger(fromAccount, toAccount) ? fromAccount : toAccount) {
+                    synchronized (fromIsBigger(fromAccount, toAccount) ?  toAccount : fromAccount) {
+                        fromAccount.setBlocked(toBlock);
+                        toAccount.setBlocked(toBlock);
+                    }
+                }
+            }
         }
         if (fromAccount.isBlocked() || toAccount.isBlocked()) {
             // Тут должен быть ответ пользователю о том, что проведение заблокировано, но чтобы не грузить тесты убрал
 
         } else if (fromAccount.getMoney() > amount) {
             /** Переводим деньги */
-            transferAmount(fromAccount, toAccount, amount);
-
-        } else{
+            synchronized (fromIsBigger(fromAccount, toAccount) ? fromAccount : toAccount) {
+                synchronized (fromIsBigger(fromAccount, toAccount) ?  toAccount : fromAccount) {
+                    fromAccount.setMoney(fromAccount.getMoney() - amount);
+                    toAccount.setMoney(toAccount.getMoney() + amount);
+                }
+            }
+        } else {
             System.out.println("Транзакция невозможна - недостаточно средств");
         }
     }
@@ -62,12 +71,8 @@ public class Bank
             }
         }
     }
-    public synchronized void transferAmount(Account fromAccount, Account toAccount, long amount) {
-        fromAccount.setMoney(fromAccount.getMoney() - amount);
-        toAccount.setMoney(toAccount.getMoney() + amount);
-    }
-    public synchronized void lockAccounts (Account fromAccount, Account toAccount, boolean toBlock) {
-        fromAccount.setBlocked(toBlock);
-        toAccount.setBlocked(toBlock);
+    public boolean fromIsBigger (Account from, Account to)
+    {
+        return (from.compareTo(to) > 0 ? true : false);
     }
 }

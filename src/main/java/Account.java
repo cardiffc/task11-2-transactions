@@ -41,7 +41,8 @@ public class Account implements Comparable<Account>
 
     @Override
     public int compareTo(Account o) {
-        return o.getAccNumber().compareTo(accNumber);
+
+        return (money >= o.getMoney()) ? 1 : -1;
     }
 }
 
